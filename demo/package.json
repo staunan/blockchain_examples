@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "mocha": "^9.2.0"
+  },
+  "dependencies": {
+    "web3": "^1.7.0"
+  }
+}
