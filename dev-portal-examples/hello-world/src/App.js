@@ -1,9 +1,5 @@
 import React from 'react';
 import './App.css';
-const {BN, Long, bytes, units} = require('@zilliqa-js/util');
-const {toBech32Address} = require('@zilliqa-js/crypto');
-const { Zilliqa } = require('@zilliqa-js/zilliqa');
-const { StatusType, MessageType } = require('@zilliqa-js/subscriptions');
 
 export default class App extends React.Component {
 
@@ -23,7 +19,13 @@ export default class App extends React.Component {
     this.connectZilpay = this.connectZilpay.bind(this);
   }
 
-  componentDidMount() {
+  async componentDidMount() {
+    // We are using setTimeout, as the ZilPay object is not available right away after the page loads
+    // The wallet injects the zilPay object after the page loads
+    setTimeout(async function(){
+      await this.connectZilpay();
+      this.observeAccount();
+    }.bind(this), 1000);
   }
 
 
@@ -57,12 +59,9 @@ export default class App extends React.Component {
     const zilliqa = window.zilPay;
     let setHelloValue = this.state.setHelloValue;
     let contractAddress = localStorage.getItem("contract_address");
-    const CHAIN_ID = 333;
-    const MSG_VERSION = 1;
-    const VERSION = bytes.pack(CHAIN_ID, MSG_VERSION);   
-    const myGasPrice = units.toQa('2000', units.Units.Li); // Gas Price that will be used by all transactions
+    const myGasPrice = zilliqa.utils.units.toQa('1000', zilliqa.utils.units.Units.Li);
     contractAddress = contractAddress.substring(2);
-    const ftAddr = toBech32Address(contractAddress);
+    const ftAddr = zilliqa.crypto.toBech32Address(contractAddress);
     try {
         const contract = zilliqa.contracts.at(ftAddr);
         const callTx = await contract.call(
@@ -75,14 +74,12 @@ export default class App extends React.Component {
                 }
             ],
             {
-                // amount, gasPrice and gasLimit must be explicitly provided
-                version: VERSION,
-                amount: new BN(0),
+                amount: zilliqa.utils.units.toQa(0, zilliqa.utils.units.Units.Zil),
                 gasPrice: myGasPrice,
-                gasLimit: Long.fromNumber(10000),
-            }
+                gasLimit: zilliqa.utils.Long.fromNumber(10000),
+            },
+            true
         );
-  
     } catch (err) {
         console.log(err);
     }
@@ -107,10 +104,10 @@ export default class App extends React.Component {
     let contractAddress = localStorage.getItem("contract_address");
     const CHAIN_ID = 333;
     const MSG_VERSION = 1;
-    const VERSION = bytes.pack(CHAIN_ID, MSG_VERSION);   
-    const myGasPrice = units.toQa('2000', units.Units.Li); // Gas Price that will be used by all transactions
+    const VERSION = zilliqa.utils.bytes.pack(CHAIN_ID, MSG_VERSION);   
+    const myGasPrice = zilliqa.utils.units.toQa('2000', zilliqa.utils.units.Units.Li); // Gas Price that will be used by all transactions
     contractAddress = contractAddress.substring(2);
-    const ftAddr = toBech32Address(contractAddress);
+    const ftAddr = zilliqa.crypto.toBech32Address(contractAddress);
     try {
         const contract = zilliqa.contracts.at(ftAddr);
         const callTx = await contract.call(
@@ -120,46 +117,52 @@ export default class App extends React.Component {
             {
                 // amount, gasPrice and gasLimit must be explicitly provided
                 version: VERSION,
-                amount: new BN(0),
+                amount: new zilliqa.utils.BN(0),
                 gasPrice: myGasPrice,
-                gasLimit: Long.fromNumber(10000),
+                gasLimit: zilliqa.utils.Long.fromNumber(10000),
             }
         );
         console.log(JSON.stringify(callTx.TranID));
-        this.eventLogSubscription();  
+        this.checkTransaction(callTx);
     } catch (err) {
         console.log(err);
     }
-
   }
-  // Code that listens to websocket and updates welcome message when getHello() gets called.
-  async eventLogSubscription() {
-    const zilliqa = new Zilliqa('https://dev-api.zilliqa.com');
-    const subscriber = zilliqa.subscriptionBuilder.buildEventLogSubscriptions(
-      'wss://dev-ws.zilliqa.com',
-      {
-        // smart contract address you want to listen on  
-        addresses: [localStorage.getItem("contract_address")],
-      },
-    );
-    
-    subscriber.emitter.on(StatusType.SUBSCRIBE_EVENT_LOG, (event) => {
-      // if subscribe success, it will echo the subscription info
-      console.log('get SubscribeEventLog echo : ', event);
+
+  async checkTransaction(callTx){
+    console.log(callTx);
+  }
+
+  // This method returns the current state of the contract, which means what values are present in the contract's variable.
+  // The whole contract state gets returned.
+  async getContractState(){
+    const zilliqa = window.zilPay;
+    let contractAddress = localStorage.getItem("contract_address");
+    const ftAddr = zilliqa.crypto.toBech32Address(contractAddress);
+    const contract = zilliqa.contracts.at(ftAddr);
+    let data = await contract.getState();
+    console.log(data);
+  }
+
+
+  // This method returns the state of the provided variable
+  // Which means value that is present in the provided variable gets returned.
+  async getContractSubState(){
+    let varName = "_balance"; // Every contract has "_balance" variable by default which contains the current balance of the contract
+    const zilliqa = window.zilPay;
+    let contractAddress = localStorage.getItem("contract_address");
+    const ftAddr = zilliqa.crypto.toBech32Address(contractAddress);
+    const contract = zilliqa.contracts.at(ftAddr);
+    let data = await contract.getSubState(varName);
+    console.log(data);
+  }
+
+  // The following method watches for account changes, if user changes his account, the alert shows
+  async observeAccount(){
+    const accountStreamChanged = window.zilPay.wallet.observableAccount().subscribe(account => {
+      console.log("New Account Detected : ", account);
     });
-    
-    subscriber.emitter.on(MessageType.EVENT_LOG, (event) => {
-      console.log('get new event log: ', JSON.stringify(event));
-      // updating the welcome msg when a new event log is received related to getHello() transition
-      if(event.hasOwnProperty("value")){
-        if(event.value[0].event_logs[0]._eventname =="getHello"){
-          let welcomeMsg = event.value[0].event_logs[0].params[0].value;
-          this.setState({welcomeMsg: welcomeMsg});
-          console.log("welcomeMsg", welcomeMsg);
-        }
-      }
-    });  
-    await subscriber.start();
+    // accountStreamChanged.unsubscribe();
   }
 
   async connectZilpay(){
@@ -167,7 +170,6 @@ export default class App extends React.Component {
       await window.zilPay.wallet.connect();
       if(window.zilPay.wallet.isConnect){
         localStorage.setItem("zilpay_connect", true);
-        window.location.reload(false);
       } else {
         alert("Zilpay connection failed, try again...")
       }
@@ -187,7 +189,6 @@ export default class App extends React.Component {
         <hr></hr>
       </form>
       <div> Hello World Contract Transitions</div><br/>
-
         <label>
           Set Hello 
           </label><br/>
@@ -202,6 +203,9 @@ export default class App extends React.Component {
         <hr></hr>
         {!localStorage.getItem("zilpay_connect") && <button onClick={this.connectZilpay}>Connect Zilpay</button>}
         <br/><br/>
+        <button onClick={this.getContractState}>Get Contract State</button>
+        <br/>
+        <button onClick={this.getContractSubState}>Get Contract Sub State</button><br/><br/>
       </div>
     );
   }

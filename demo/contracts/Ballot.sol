@@ -128,7 +128,7 @@ contract Ballot {
 
     /// @dev Computes the winning proposal taking all
     /// previous votes into account.
-    function winningProposal() public viewreturns (uint winningProposal_){
+    function winningProposal() public view returns (uint winningProposal_){
         uint winningVoteCount = 0;
         for (uint p = 0; p < proposals.length; p++) {
             if (proposals[p].voteCount > winningVoteCount) {
