@@ -8,7 +8,8 @@ export default class App extends React.Component {
     this.state = {
       contractAddress: '',
       setHelloValue: '',
-      welcomeMsg:''
+      welcomeMsg:'',
+      accountObserver: null,
     };
 
     this.handleAddressChange = this.handleAddressChange.bind(this);
@@ -28,6 +29,11 @@ export default class App extends React.Component {
     }.bind(this), 1000);
   }
 
+  componentWillUnmount() {
+    // Unsubscribe Account Observer --
+    this.state.accountObserver.unsubscribe();
+    this.setState({accountObserver: null});
+  }
 
   handleAddressChange(event) {
     this.setState({contractAddress: event.target.value});
@@ -157,12 +163,12 @@ export default class App extends React.Component {
     console.log(data);
   }
 
-  // The following method watches for account changes, if user changes his account, the alert shows
+  // The following method watches for account changes, if user changes his account, the console.log shows
   async observeAccount(){
-    const accountStreamChanged = window.zilPay.wallet.observableAccount().subscribe(account => {
+    let accountObserver = window.zilPay.wallet.observableAccount().subscribe(account => {
       console.log("New Account Detected : ", account);
     });
-    // accountStreamChanged.unsubscribe();
+    this.setState({accountObserver: accountObserver});
   }
 
   async connectZilpay(){
