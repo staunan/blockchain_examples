@@ -86,9 +86,19 @@ export default class App extends React.Component {
             },
             true
         );
+        console.log(callTx);
+        this.checkSetTransaction(callTx.TranID);
     } catch (err) {
         console.log(err);
     }
+  }
+
+  async checkSetTransaction(transactionHash){
+    let interval = setInterval(async function(){
+      const zilliqa = window.zilPay;
+      const txn = await zilliqa.blockchain.getTransactionStatus("0x"+transactionHash);
+      console.log(txn);
+    }, 5000);
   }
 
   async getHello(){
@@ -150,17 +160,20 @@ export default class App extends React.Component {
     console.log(data);
   }
 
-
   // This method returns the state of the provided variable
   // Which means value that is present in the provided variable gets returned.
   async getContractSubState(){
-    let varName = "_balance"; // Every contract has "_balance" variable by default which contains the current balance of the contract
+    let varName = "owner"; // Every contract has "_balance" variable by default which contains the current balance of the contract
     const zilliqa = window.zilPay;
     let contractAddress = localStorage.getItem("contract_address");
     const ftAddr = zilliqa.crypto.toBech32Address(contractAddress);
     const contract = zilliqa.contracts.at(ftAddr);
+    console.log(contract);
     let data = await contract.getSubState(varName);
     console.log(data);
+
+    let d = await zilliqa.blockchain.getSmartContractInit(contractAddress);
+    console.log(d);
   }
 
   // The following method watches for account changes, if user changes his account, the console.log shows
