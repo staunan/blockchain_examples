@@ -5,14 +5,13 @@ const Storage = artifacts.require("Storage");
 let deployedContractInstance = null;
 
 contract("Storage", accounts => {
-
     it("Deploy the Contract", async function(){
         deployedContractInstance = await Storage.deployed();
         console.log("Contract Deployed to Test Network !!!");
         console.log("Contract Address : " + deployedContractInstance.address);
         assert.ok(deployedContractInstance.address);
     });
-
+    
     it("Check Account Balance", async function(){
         // web3 module is automatically configured and imported by Truffle, so no need to import web3. Just use it directly --
         let balance = await web3.eth.getBalance(accounts[0]);
@@ -31,5 +30,4 @@ contract("Storage", accounts => {
         // Check if the values are equeal
         assert.equal(storedValue, value);
     });
-    
 });
