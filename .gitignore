@@ -1,4 +1,5 @@
 ethereum/truffle_examples/build
+ethereum/truffle_examples/build/*
 
 # Logs
 logs
